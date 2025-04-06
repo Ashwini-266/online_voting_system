@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online Voting System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+
+    header {
+      background-color: #4CAF50;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .login-form input {
+      margin-bottom: 10px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .password-wrapper {
+      position: relative;
+    }
+
+    .password-wrapper input {
+      width: calc(100% - 30px);
+    }
+
+    .password-wrapper i {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .results {
+      margin-top: 20px;
+    }
+
+    .results div {
+      margin-bottom: 10px;
+    }
+
+    #logout-admin {
+      float: right;
+      background-color: #f44336;
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    #logout-admin:hover {
+      background-color: #e53935;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Online Voting System</h1>
+  </header>
+
+  <div class="container" id="login-container">
+    <h2>Login</h2>
+    <form class="login-form" id="login-form">
+      <input type="text" id="username" placeholder="Enter username" autocomplete="off" required>
+      <div class="password-wrapper">
+        <input type="password" id="password" placeholder="Enter password" autocomplete="off" required>
+        <i class="toggle-password" id="toggle-password">👁️</i>
+      </div>
+      <select id="role" required>
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <div class="container" id="voting-container" style="display: none;">
+    <h2>Vote for Your Favorite Candidate</h2>
+
+    <div id="voting-area">
+      <div class="candidate">
+        <label>
+          <input type="radio" name="candidate" value="1"> Candidate 1
+        </label>
+      </div>
+      <div class="candidate">
+        <label>
+          <input type="radio" name="candidate" value="2"> Candidate 2
+        </label>
+      </div>
+      <div class="candidate">
+        <label>
+          <input type="radio" name="candidate" value="3"> Candidate 3
+        </label>
+      </div>
+    </div>
+
+    <button id="submit-vote">Submit Vote</button>
+  </div>
+
+  <div class="container" id="admin-container" style="display: none;">
+    <h2>Admin Dashboard</h2>
+    <button id="logout-admin">Logout</button>
+    <div class="results" id="live-results">
+      <h3>Live Results</h3>
+      <div id="results-data"></div>
+    </div>
+
+    
+    <h3>Clear All Votes</h3>
+    <button id="clear-votes">Clear Votes</button>
+
+  </div>
+
+  <script>
+    const votes = {
+      "Candidate 1": 0,
+      "Candidate 2": 0,
+      "Candidate 3": 0
+    };
+
+    const votedUsers = new Map(); // Track users who have voted and their choice
+
+    const credentials = {
+      admin: { username: "admin", password: "admin123" },
+      users: [
+        { username: "user1", password: "password1" },
+        { username: "user2", password: "password2" },
+        { username: "user3", password: "password3" }
+      ]
+    };
+
+    const loginForm = document.getElementById('login-form');
+    const loginContainer = document.getElementById('login-container');
+    const votingContainer = document.getElementById('voting-container');
+    const adminContainer = document.getElementById('admin-container');
+
+    let currentUser = null; // Track the current logged-in user
+
+    loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const role = document.getElementById('role').value;
+
+    // Reset any previously selected vote
+    document.querySelectorAll('input[name="candidate"]').forEach(radio => radio.checked = false);
+
+    if (role === 'admin') {
+        if (username === credentials.admin.username && password === credentials.admin.password) {
+            loginContainer.style.display = 'none';
+            adminContainer.style.display = 'block';
+            displayResults();
+        } else {
+            alert('Invalid admin credentials.');
+        }
+    } else if (role === 'user') {
+        const user = credentials.users.find(u => u.username === username && u.password === password);
+        if (user) {
+            if (votedUsers.has(username)) {
+                alert('You have already voted.');
+            } else {
+                currentUser = username;
+                loginContainer.style.display = 'none';
+                votingContainer.style.display = 'block';
+            }
+        } else {
+            alert('Invalid user credentials.');
+        }
+    } else {
+        alert('Invalid role selected.');
+    }
+});
+
+document.getElementById('submit-vote').addEventListener('click', () => {
+    const selected = document.querySelector('input[name="candidate"]:checked');
+
+    if (!selected) {
+        alert('Please select a candidate before submitting your vote.');
+        return;
+    }
+
+    const candidate_id = parseInt(selected.value, 10);
+    const username = currentUser;
+
+    fetch('http://localhost:5000/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, candidate_id })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+
+        // Reset vote selection after submitting
+        document.querySelectorAll('input[name="candidate"]').forEach(radio => radio.checked = false);
+
+        // Reset user data
+        currentUser = null;
+        document.getElementById('username').value = '';  
+        document.getElementById('password').value = '';  
+        document.getElementById('role').value = 'user';
+
+        votingContainer.style.display = 'none';
+        loginContainer.style.display = 'block';
+    })
+    .catch(error => console.error('Error:', error));
+});
+fetch('http://localhost:5000/vote-count')
+  .then(response => response.json())
+  .then(data => {
+    console.log("Vote Count:", data);
+    let resultsContainer = document.getElementById('vote-results');
+    resultsContainer.innerHTML = data
+      .map(vote => `<p>Candidate ${vote.candidate_id}: ${vote.total_votes} votes</p>`)
+      .join('');
+  })
+  .catch(error => console.error('Error fetching vote count:', error));
+
+function displayResults() {
+  fetch('http://localhost:5000/results')
+    .then(response => response.json())
+    .then(data => {
+      const resultsData = document.getElementById('results-data');
+      resultsData.innerHTML = '';
+      data.forEach(candidate => {
+        const resultLine = document.createElement('div');
+        resultLine.textContent = `${candidate.name}: ${candidate.vote_count} votes`;
+        resultsData.appendChild(resultLine);
+      });
+    })
+    .catch(error => console.error('Error fetching results:', error));
+}
+    
+    setInterval(() => {
+      if (adminContainer.style.display === 'block') {
+        displayResults();
+        displayVotingList();
+      }
+    }, 1000);
+
+    // Toggle password visibility
+    const togglePassword = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
+
+    togglePassword.addEventListener('click', () => {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      togglePassword.textContent = type === 'password' ? '👁️' : '👁️‍🗨️';
+    });
+
+    // Logout functionality for admin
+    document.getElementById('logout-admin').addEventListener('click', () => {
+    adminContainer.style.display = 'none';
+    loginContainer.style.display = 'block';
+
+    // Reset vote selection when logging out
+    document.querySelectorAll('input[name="candidate"]').forEach(radio => radio.checked = false);
+
+    // Reset the username and password fields
+    document.getElementById('username').value = '';  
+    document.getElementById('password').value = '';  
+    document.getElementById('role').value = 'user';
+
+    alert('You have successfully logged out.');
+});
+
+
+    document.getElementById('clear-votes').addEventListener('click', () => {
+    if (!confirm('Are you sure you want to clear all votes? This action cannot be undone.')) {
+        return;
+    }
+
+    fetch('http://localhost:5000/clear-votes', {
+        method: 'DELETE',
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        location.reload(); // Refresh results
+    })
+    .catch(error => console.error('Error:', error));
+});
+  </script>
+</body>
+</html>
